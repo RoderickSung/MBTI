@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MBTI 性格探索測驗</title>
+<style>
+  :root {
+    --bg: #EDE6D9;
+    --surface: #FBF6EC;
+    --surface-2: #F3EBDC;
+    --rose: #C99A93;
+    --rose-deep: #AD7D75;
+    --camel: #B99B78;
+    --camel-deep: #9C7F5C;
+    --terracotta: #BC7357;
+    --terracotta-deep: #9E5C42;
+    --mauve: #9C7A78;
+    --mauve-deep: #82605E;
+    --ink: #453A33;
+    --ink-soft: #776A5C;
+    --line: #E0D3C1;
+    --shadow: rgba(69, 58, 51, 0.14);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.4;
+    z-index: 0;
+    pointer-events: none;
+  }
+  body::before { width: 260px; height: 260px; background: var(--rose); top: -90px; left: -90px; }
+  body::after { width: 300px; height: 300px; background: var(--camel); bottom: -110px; right: -110px; }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding: 32px 22px 48px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.active { display: flex; animation: fadeUp .5s ease; }
+  .screen-start { justify-content: center; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---- Start screen ---- */
+  .start-decor { display: flex; justify-content: center; align-items: flex-end; gap: 14px; height: 100px; margin-bottom: 28px; }
+  .decor-jar { border-radius: 16px 16px 8px 8px; border: 2px solid var(--line); }
+  .decor-jar:nth-child(1) { width: 32px; height: 58px; background: var(--rose); }
+  .decor-jar:nth-child(2) { width: 40px; height: 84px; background: var(--terracotta); }
+  .decor-jar:nth-child(3) { width: 34px; height: 50px; background: var(--camel); }
+  .decor-jar:nth-child(4) { width: 38px; height: 70px; background: var(--mauve); }
+
+  .start-title { font-size: 30px; font-weight: 800; text-align: center; letter-spacing: 0.02em; margin-bottom: 12px; }
+  .start-subtitle { font-size: 15px; color: var(--ink-soft); text-align: center; margin-bottom: 20px; padding: 0 8px; }
+  .start-meta { font-size: 13px; color: var(--ink-soft); text-align: center; letter-spacing: 0.02em; margin-bottom: 36px; }
+  .start-meta span { margin: 0 6px; white-space: nowrap; }
+
+  .btn-primary {
+    display: block; width: 100%; background: var(--terracotta); color: #FFF9F2;
+    border: none; border-radius: 999px; padding: 17px 32px; font-size: 16px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 10px 24px var(--shadow); transition: transform .15s ease;
+    font-family: inherit;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:focus-visible { outline: 3px solid var(--terracotta-deep); outline-offset: 3px; }
+
+  .btn-secondary {
+    display: block; width: 100%; background: transparent; color: var(--ink);
+    border: 2px solid var(--line); border-radius: 999px; padding: 15px 32px; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: transform .15s ease; font-family: inherit; margin-top: 12px;
+  }
+  .btn-secondary:active { transform: scale(0.97); }
+  .btn-secondary:focus-visible { outline: 3px solid var(--terracotta-deep); outline-offset: 3px; }
+
+  /* ---- Question screen ---- */
+  .q-progress { margin-bottom: 28px; }
+  .q-progress-track { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
+  .q-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--rose), var(--terracotta)); border-radius: 999px; transition: width .4s ease; }
+  .q-progress-text { font-size: 13px; color: var(--ink-soft); letter-spacing: 0.02em; text-align: right; }
+
+  .q-card { background: var(--surface); border-radius: 24px; padding: 28px 22px; box-shadow: 0 6px 20px var(--shadow); margin-bottom: 20px; }
+  .q-card.q-anim { animation: fadeUp .35s ease; }
+
+  .q-text { font-size: 19px; font-weight: 600; line-height: 1.6; margin-bottom: 24px; min-height: 84px; display: flex; align-items: center; }
+
+  .q-options { display: flex; flex-direction: column; }
+  .opt-btn {
+    width: 100%; padding: 14px 18px; margin-bottom: 10px; border: 2px solid var(--line);
+    border-radius: 16px; background: var(--surface-2); color: var(--ink); font-size: 15px; font-weight: 500;
+    text-align: left; cursor: pointer; font-family: inherit;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .opt-btn:last-child { margin-bottom: 0; }
+  .opt-btn:active { transform: scale(0.98); }
+  .opt-btn.selected { background: var(--terracotta); border-color: var(--terracotta-deep); color: #FFF9F2; }
+  .opt-btn:focus-visible { outline: 3px solid var(--terracotta-deep); outline-offset: 2px; }
+
+  .q-back {
+    background: none; border: none; color: var(--ink-soft); font-size: 14px; font-weight: 600;
+    cursor: pointer; padding: 10px; align-self: flex-start; font-family: inherit;
+  }
+  .q-back:focus-visible { outline: 2px solid var(--terracotta-deep); outline-offset: 2px; border-radius: 6px; }
+
+  /* ---- Result screen ---- */
+  .result-header { text-align: center; margin-bottom: 8px; }
+  .result-emoji { font-size: 52px; display: block; margin-bottom: 6px; animation: bounce 2.4s ease-in-out infinite; }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .result-eyebrow { font-size: 12px; color: var(--ink-soft); letter-spacing: 0.1em; text-align: center; margin-bottom: 4px; }
+  .result-code { font-size: 44px; font-weight: 800; text-align: center; letter-spacing: 0.05em; color: var(--terracotta-deep); }
+  .result-nickname { font-size: 21px; font-weight: 700; text-align: center; margin-top: 2px; }
+  .result-tagline { font-size: 14px; color: var(--ink-soft); text-align: center; margin-top: 4px; margin-bottom: 20px; }
+
+  .stilllife { display: flex; justify-content: center; align-items: flex-end; gap: 16px; margin: 8px 0 28px; padding: 16px 8px 20px; border-bottom: 2px solid var(--line); }
+  .jar { display: flex; flex-direction: column; align-items: center; }
+  .jar-body {
+    width: 40px; height: 90px; background: var(--surface-2); border: 2px solid var(--line);
+    border-radius: 16px 16px 8px 8px; overflow: hidden; display: flex; align-items: flex-end; margin-bottom: 8px;
+  }
+  .jar:nth-child(1) .jar-body { width: 36px; }
+  .jar:nth-child(2) .jar-body { width: 44px; height: 96px; }
+  .jar:nth-child(3) .jar-body { width: 38px; }
+  .jar:nth-child(4) .jar-body { width: 42px; height: 84px; }
+  .jar-fill { width: 100%; height: 0%; border-radius: 0 0 6px 6px; transition: height 1.1s cubic-bezier(0.22, 1, 0.36, 1); }
+  .jar-label { font-size: 13px; font-weight: 700; }
+  .jar-sublabel { font-size: 10px; color: var(--ink-soft); text-align: center; margin-top: 2px; max-width: 74px; }
+
+  .result-desc { font-size: 15px; line-height: 1.75; text-align: center; margin-bottom: 24px; padding: 0 4px; }
+
+  .info-card { background: var(--surface); border-radius: 20px; padding: 18px 20px; margin-bottom: 14px; border-left: 5px solid var(--rose); box-shadow: 0 4px 14px var(--shadow); }
+  .info-card.watchouts { border-left-color: var(--terracotta); }
+  .info-card.careers { border-left-color: var(--camel); }
+  .info-card.compat { border-left-color: var(--mauve); }
+  .info-card.celeb { border-left-color: var(--rose-deep); }
+
+  .info-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .info-card ul { list-style: none; }
+  .info-card li { font-size: 14px; padding-left: 18px; position: relative; margin-bottom: 6px; line-height: 1.6; }
+  .info-card li::before { content: '·'; position: absolute; left: 4px; font-weight: 800; color: var(--ink-soft); }
+  .info-card li:last-child { margin-bottom: 0; }
+  .info-card p { font-size: 14px; line-height: 1.7; }
+
+  .result-actions { margin-top: 20px; }
+  .copy-hint { font-size: 12px; color: var(--ink-soft); text-align: center; margin-top: 10px; min-height: 16px; }
+  .disclaimer { font-size: 11.5px; color: var(--ink-soft); text-align: center; line-height: 1.7; margin-top: 24px; padding: 0 8px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  @media (min-width: 640px) { #app { padding-top: 56px; } }
+  @media (max-width: 360px) { .q-text { font-size: 17px; } .result-code { font-size: 38px; } }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section class="screen screen-start active" id="screen-start">
+    <div class="start-decor" aria-hidden="true">
+      <div class="decor-jar"></div>
+      <div class="decor-jar"></div>
+      <div class="decor-jar"></div>
+      <div class="decor-jar"></div>
+    </div>
+    <h1 class="start-title">MBTI 性格探索</h1>
+    <p class="start-subtitle">32 道題目，帶你認識自己的思考與相處風格。誠實回答，沒有標準答案，只有最像你的答案。</p>
+    <p class="start-meta"><span>📝 32 題</span><span>⏱ 約 8-10 分鐘</span><span>🔒 完全離線分析</span></p>
+    <button class="btn-primary" id="startBtn" type="button">開始測驗</button>
+  </section>
+
+  <section class="screen" id="screen-question">
+    <div class="q-progress">
+      <div class="q-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="32" aria-valuenow="0" id="progressTrack">
+        <div class="q-progress-fill" id="progressFill"></div>
+      </div>
+      <div class="q-progress-text" id="progressText">第 1 題 ／ 32</div>
+    </div>
+    <div class="q-card" id="questionCard">
+      <p class="q-text" id="questionText"></p>
+      <div class="q-options" id="questionOptions" role="radiogroup"></div>
+    </div>
+    <button class="q-back" id="backBtn" type="button">← 上一題</button>
+  </section>
+
+  <section class="screen" id="screen-result">
+    <div class="result-header">
+      <span class="result-emoji" id="resultEmoji">🦉</span>
+      <p class="result-eyebrow">你的探索結果</p>
+      <p class="result-code" id="resultCode">INTJ</p>
+      <p class="result-nickname" id="resultNickname"></p>
+      <p class="result-tagline" id="resultTagline"></p>
+    </div>
+
+    <div class="stilllife" id="jarsContainer"></div>
+
+    <p class="result-desc" id="resultDescription"></p>
+
+    <div class="info-card strengths">
+      <div class="info-title">💪 優勢</div>
+      <ul id="strengthsList"></ul>
+    </div>
+    <div class="info-card watchouts">
+      <div class="info-title">⚠️ 留意</div>
+      <ul id="watchoutsList"></ul>
+    </div>
+    <div class="info-card careers">
+      <div class="info-title">💼 適合的職業方向</div>
+      <ul id="careersList"></ul>
+    </div>
+    <div class="info-card compat">
+      <div class="info-title">❤️ 人際／戀愛相容性</div>
+      <p id="compatibilityText"></p>
+    </div>
+    <div class="info-card celeb">
+      <div class="info-title">✨ 常見同類型名人</div>
+      <p id="celebritiesText"></p>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn-primary" id="copyBtn" type="button">複製結果文字</button>
+      <p class="copy-hint" id="copyHint"></p>
+      <button class="btn-secondary" id="restartBtn" type="button">重新測驗</button>
+    </div>
+    <p class="disclaimer">本測驗結果僅供自我認識與娛樂參考，並非正式心理測驗或臨床診斷。名人歸類為坊間普遍看法，非本人認證。</p>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ===================== Data: Questions =====================
+  // dim: EI / SN / TF / JP.  pole: 'A' or 'B' (see POLE_LETTER map below).
+  var QUESTIONS = [
+    { dim: 'EI', pole: 'A', text: '參加聚會或活動後，我通常覺得精力充沛，而不是疲憊。' },
+    { dim: 'SN', pole: 'A', text: '我比較相信自己親眼看到、實際驗證過的事。' },
+    { dim: 'TF', pole: 'A', text: '做決定時，邏輯和客觀分析對我來說比感受更重要。' },
+    { dim: 'JP', pole: 'A', text: '我喜歡事先規劃好行程，不喜歡臨時被打亂。' },
+    { dim: 'EI', pole: 'B', text: '獨處的時光對我來說是充電，而不是孤單。' },
+    { dim: 'SN', pole: 'B', text: '我常常在思考各種可能性，即使它們還沒發生。' },
+    { dim: 'TF', pole: 'B', text: '做決定時，我會優先考慮這會如何影響身邊的人。' },
+    { dim: 'JP', pole: 'B', text: '我喜歡保持彈性，隨時可以改變計畫。' },
+    { dim: 'EI', pole: 'A', text: '我喜歡在人群中一邊聊天一邊整理想法。' },
+    { dim: 'SN', pole: 'A', text: '做事時我習慣照步驟來，不喜歡跳著做。' },
+    { dim: 'TF', pole: 'A', text: '我認為誠實直接的回饋，比顧及對方感受更重要。' },
+    { dim: 'JP', pole: 'A', text: '待辦清單、行事曆是我生活中不可或缺的工具。' },
+    { dim: 'EI', pole: 'B', text: '比起大團體聚會，我更喜歡跟一兩位朋友深聊。' },
+    { dim: 'SN', pole: 'B', text: '比起眼前的細節，我更容易看到事情背後的大方向。' },
+    { dim: 'TF', pole: 'B', text: '我很在意團隊或家庭裡的和諧氣氛。' },
+    { dim: 'JP', pole: 'B', text: '截止日前的最後衝刺，反而讓我特別有效率。' },
+    { dim: 'EI', pole: 'A', text: '認識新朋友對我來說是件輕鬆愉快的事。' },
+    { dim: 'SN', pole: 'A', text: '我對細節和實際狀況很敏銳，容易注意到別人沒發現的小地方。' },
+    { dim: 'TF', pole: 'A', text: '面對衝突時，我習慣先分析誰的論點比較合理。' },
+    { dim: 'JP', pole: 'A', text: '把一件事情做完收尾，我才能真正放鬆。' },
+    { dim: 'EI', pole: 'B', text: '開口之前，我習慣先在腦中把話想清楚。' },
+    { dim: 'SN', pole: 'B', text: '我喜歡把不同領域的東西聯想在一起。' },
+    { dim: 'TF', pole: 'B', text: '看到別人難過，我常常也會跟著感同身受。' },
+    { dim: 'JP', pole: 'B', text: '比起照計畫走，我更享受隨機應變的驚喜感。' },
+    { dim: 'EI', pole: 'A', text: '我常常是主動開啟話題的那個人。' },
+    { dim: 'SN', pole: 'A', text: '比起抽象理論，我更喜歡談論具體、實用的東西。' },
+    { dim: 'TF', pole: 'A', text: '我不太容易被當下的情緒左右判斷。' },
+    { dim: 'JP', pole: 'A', text: '我偏好盡早決定，而不是把選項一直開著。' },
+    { dim: 'EI', pole: 'B', text: '忙碌一整天後，我最想做的是自己安靜待著。' },
+    { dim: 'SN', pole: 'B', text: '探索未知的想法，比重複熟悉的做法更吸引我。' },
+    { dim: 'TF', pole: 'B', text: '給建議時，我會特別注意講話的方式，不想傷到對方。' },
+    { dim: 'JP', pole: 'B', text: '我常常同時進行好幾件事，靈活切換。' }
+  ];
+
+  var POLE_LETTER = {
+    EI: { A: 'E', B: 'I' },
+    SN: { A: 'S', B: 'N' },
+    TF: { A: 'T', B: 'F' },
+    JP: { A: 'J', B: 'P' }
+  };
+  var POLE_NAME = { E: '外向', I: '內向', S: '實感', N: '直覺', T: '思考', F: '情感', J: '判斷', P: '感知' };
+  var DIM_COLOR = { EI: 'var(--rose)', SN: 'var(--camel)', TF: 'var(--terracotta)', JP: 'var(--mauve)' };
+  var DIM_ORDER = ['EI', 'SN', 'TF', 'JP'];
+
+  // ===================== Data: Type Profiles =====================
+  var TYPES = {
+    ISTJ: {
+      emoji: '📋', nickname: '物流師', tagline: '腳踏實地的實踐家',
+      description: '你重視事實與規則，做事講求條理，答應的事一定做到，是別人眼中最可靠的存在。',
+      strengths: ['極度負責', '注重細節', '邏輯清晰', '值得信賴'],
+      watchouts: ['對突發變化較不適應', '不擅長表達內心情感', '有時顯得固執'],
+      careers: ['會計師', '審計人員', '專案管理', '工程師', '公務人員'],
+      compatibility: '和感性外向的 ESFP、ESTP 互補，對方的活潑能為你的生活增添色彩，你的穩定也能給對方安全感。',
+      celebrities: ['George Washington', 'Warren Buffett']
+    },
+    ISFJ: {
+      emoji: '🛡️', nickname: '守護者', tagline: '溫柔堅定的守護者',
+      description: '你細心體貼，總是默默照顧身邊的人，責任感強，是團隊裡最讓人安心的存在。',
+      strengths: ['體貼細心', '極具耐心', '忠誠可靠', '觀察力強'],
+      watchouts: ['容易把別人需求放在自己前面', '不擅長拒絕', '害怕衝突'],
+      careers: ['護理師', '教師', '社工', '人力資源', '行政管理'],
+      compatibility: '與充滿熱情的 ESFP、ESTP 很合拍，對方帶來新鮮感，你則給對方穩定的後盾。',
+      celebrities: ['Queen Elizabeth II', 'Mother Teresa']
+    },
+    INFJ: {
+      emoji: '🕯️', nickname: '提倡者', tagline: '洞察人心的理想主義者',
+      description: '你對人性有深刻的洞察，懷抱理想並默默努力實現，重視意義勝過表面成就。',
+      strengths: ['富有同理心', '洞察力強', '有原則', '能激勵他人'],
+      watchouts: ['容易過度理想化', '對批評敏感', '常忽略自己的需求'],
+      careers: ['心理諮商師', '作家', '人資顧問', '非營利組織工作者', '教育工作者'],
+      compatibility: '與務實外向的 ENFP、ENTP 互動時特別有火花，彼此能互相打開視野。',
+      celebrities: ['Mahatma Gandhi', 'Plato']
+    },
+    INTJ: {
+      emoji: '🦉', nickname: '建築師', tagline: '深謀遠慮的策略家',
+      description: '你擅長從大局思考，喜歡把複雜問題拆解成清楚的計畫，獨立又有主見。',
+      strengths: ['戰略思維強', '獨立自主', '追求效率', '學習能力強'],
+      watchouts: ['有時顯得冷淡', '對沒效率的事缺乏耐心', '不易妥協'],
+      careers: ['策略顧問', '工程師', '科學研究', '系統架構師', '投資分析師'],
+      compatibility: '與熱情直率的 ENFP、ENTP 互補性高，對方能軟化你的稜角，你則能給對方方向感。',
+      celebrities: ['Isaac Newton', 'Elon Musk']
+    },
+    ISTP: {
+      emoji: '🔧', nickname: '鑑賞家', tagline: '冷靜俐落的實作家',
+      description: '你動手能力強，喜歡了解事物如何運作，遇到問題時總能冷靜找出解方。',
+      strengths: ['邏輯清晰', '適應力強', '動手能力佳', '臨場反應快'],
+      watchouts: ['不擅長長期承諾', '容易顯得疏離', '不喜歡談論感受'],
+      careers: ['工程師', '技師', '飛行員', '外科醫師', '資訊技術'],
+      compatibility: '與熱情主動的 ESFJ、ESTJ 相處融洽，對方的規劃能力補足你隨性的一面。',
+      celebrities: ['Bruce Lee', 'Clint Eastwood']
+    },
+    ISFP: {
+      emoji: '🎨', nickname: '探險家', tagline: '隨心而行的藝術家',
+      description: '你重視自由與美感，用自己的步調感受世界，溫和卻有著堅定的價值觀。',
+      strengths: ['審美獨到', '適應力強', '溫和友善', '忠於自我'],
+      watchouts: ['不擅長規劃長遠目標', '容易迴避衝突', '對批評較敏感'],
+      careers: ['設計師', '攝影師', '音樂人', '獸醫', '治療師'],
+      compatibility: '與踏實外向的 ESTJ、ENFJ 很互補，對方給你方向，你為對方帶來柔軟。',
+      celebrities: ['Vincent van Gogh', 'Michael Jackson']
+    },
+    INFP: {
+      emoji: '🌸', nickname: '調停者', tagline: '溫柔堅持的理想家',
+      description: '你重視內心的價值觀，富有想像力，總是溫柔地看待這個世界與身邊的人。',
+      strengths: ['富有創意', '同理心強', '忠於價值觀', '善於傾聽'],
+      watchouts: ['容易想太多', '不擅長面對衝突', '對自我要求過高'],
+      careers: ['作家', '心理師', '藝術創作者', '社會工作者', '編輯'],
+      compatibility: '與果斷外向的 ENFJ、ENTJ 相處愉快，對方能幫你把想法化為行動。',
+      celebrities: ['William Shakespeare', 'J.K. Rowling']
+    },
+    INTP: {
+      emoji: '🔬', nickname: '邏輯學家', tagline: '熱愛拆解世界的思考者',
+      description: '你對知識充滿好奇，喜歡鑽研理論，享受把複雜概念拆解重組的過程。',
+      strengths: ['分析能力強', '思維獨立', '求知慾旺盛', '客觀理性'],
+      watchouts: ['容易忽略時間管理', '不擅長處理情緒性話題', '有時顯得疏離'],
+      careers: ['研究員', '資料科學家', '軟體工程師', '哲學學者', '系統分析師'],
+      compatibility: '與活潑外向的 ENTJ、ENFJ 互動良好，對方能推你把想法付諸實行。',
+      celebrities: ['Albert Einstein', 'Charles Darwin']
+    },
+    ESTP: {
+      emoji: '⚡', nickname: '挑戰者', tagline: '隨機應變的行動派',
+      description: '你活在當下，喜歡刺激與挑戰，反應敏捷，總能在混亂中找到出路。',
+      strengths: ['應變能力強', '務實果斷', '社交手腕好', '抗壓性高'],
+      watchouts: ['容易衝動行事', '不喜歡按部就班', '對長期規劃較無耐心'],
+      careers: ['業務', '創業家', '緊急救護', '活動企劃', '運動教練'],
+      compatibility: '與沉穩內向的 ISFJ、ISTJ 很互補，對方的穩定能平衡你的衝勁。',
+      celebrities: ['Winston Churchill', 'Madonna']
+    },
+    ESFP: {
+      emoji: '🎉', nickname: '表演者', tagline: '為生活注入歡樂的人',
+      description: '你熱情開朗，喜歡與人互動，總能把氣氛炒熱，讓身邊的人感染你的活力。',
+      strengths: ['熱情友善', '感染力強', '適應力好', '活在當下'],
+      watchouts: ['不擅長長遠規劃', '容易被情緒影響決定', '不喜歡處理嚴肅話題'],
+      careers: ['表演藝術', '活動主持', '公關', '業務', '旅遊業'],
+      compatibility: '與穩重內向的 ISFJ、ISTJ 相處自在，對方給你安全感，你為對方帶來歡笑。',
+      celebrities: ['Marilyn Monroe', 'Elton John']
+    },
+    ENFP: {
+      emoji: '🌟', nickname: '競選者', tagline: '熱情洋溢的夢想家',
+      description: '你充滿創意與熱情，對世界抱持好奇，總能看見別人沒注意到的可能性。',
+      strengths: ['創意豐富', '熱情有感染力', '善於溝通', '適應力強'],
+      watchouts: ['容易分心', '不擅長處理繁瑣細節', '有時難以堅持到底'],
+      careers: ['創意總監', '記者', '公關顧問', '心理諮商', '創業家'],
+      compatibility: '與冷靜內斂的 INTJ、INFJ 特別合拍，對方能幫你把靈感落地。',
+      celebrities: ['Walt Disney', 'Robin Williams']
+    },
+    ENTP: {
+      emoji: '💡', nickname: '辯論家', tagline: '點子源源不絕的挑戰者',
+      description: '你思維敏捷，喜歡辯論與腦力激盪，總能從不同角度挑戰既有的想法。',
+      strengths: ['創意十足', '口才好', '適應力強', '喜歡挑戰現狀'],
+      watchouts: ['容易半途而廢', '不喜歡重複性工作', '有時顯得愛抬槓'],
+      careers: ['創業家', '律師', '行銷策略', '發明家', '顧問'],
+      compatibility: '與踏實內斂的 INFJ、INTJ 互動很有火花，對方能幫你聚焦想法。',
+      celebrities: ['Socrates', 'Mark Twain']
+    },
+    ESTJ: {
+      emoji: '📊', nickname: '總經理', tagline: '說到做到的管理者',
+      description: '你重視效率與秩序，擅長組織資源、推動計畫，是團隊中值得依靠的領導者。',
+      strengths: ['組織能力強', '責任感重', '決斷力好', '執行力高'],
+      watchouts: ['有時顯得強勢', '不易接受與計畫不同的意見', '對情緒性議題較無耐心'],
+      careers: ['企業管理', '專案總監', '軍警', '法官', '營運管理'],
+      compatibility: '與溫和感性的 ISFP、INFP 很互補，對方柔化你的堅持，你給對方方向。',
+      celebrities: ['Henry Ford', 'Margaret Thatcher']
+    },
+    ESFJ: {
+      emoji: '🤝', nickname: '執政官', tagline: '熱心助人的凝聚者',
+      description: '你重視人際和諧，樂於照顧身邊的人，總能記住每個人的需要並適時伸出援手。',
+      strengths: ['熱心體貼', '組織力強', '責任感重', '善於凝聚團隊'],
+      watchouts: ['太在意他人評價', '不擅長拒絕', '面對衝突容易委屈自己'],
+      careers: ['教師', '護理師', '活動企劃', '人力資源', '客戶服務'],
+      compatibility: '與獨立理性的 ISTP、INTP 是不錯的互補，對方給你空間，你給對方溫暖。',
+      celebrities: ['Taylor Swift', 'Bill Clinton']
+    },
+    ENFJ: {
+      emoji: '🌻', nickname: '主人公', tagline: '天生的鼓舞者',
+      description: '你善於理解他人，總能看見每個人的潛力，並用溫暖的方式鼓勵身邊的人成長。',
+      strengths: ['領導魅力強', '同理心高', '善於溝通', '有感染力'],
+      watchouts: ['容易把別人的需求放在自己前面', '對批評敏感', '有時過度理想化'],
+      careers: ['教育工作者', '人資顧問', '心理諮商', '公關', '非營利組織領導'],
+      compatibility: '與獨立內斂的 INFP、ISFP 很合拍，對方的深度能與你的熱情相輔相成。',
+      celebrities: ['Oprah Winfrey', 'Martin Luther King Jr.']
+    },
+    ENTJ: {
+      emoji: '🎯', nickname: '指揮官', tagline: '天生的領導者',
+      description: '你目標明確、意志堅定，擅長帶領團隊朝願景前進，是天生的決策者。',
+      strengths: ['領導力強', '目標導向', '決斷力好', '擅長長期規劃'],
+      watchouts: ['有時顯得強勢固執', '對效率不彰的人事較無耐心', '容易忽略他人感受'],
+      careers: ['企業高階管理', '創業家', '律師', '投資銀行', '政策顧問'],
+      compatibility: '與溫暖內斂的 INFP、ISFP 是很好的互補，對方軟化你的稜角，你給對方前進的方向。',
+      celebrities: ['Steve Jobs', 'Napoleon Bonaparte']
+    }
+  };
+
+  // ===================== State =====================
+  var current = 0;
+  var answers = [];
+  var currentResultData = null;
+
+  // ===================== Helpers =====================
+  function $(id) { return document.getElementById(id); }
+
+  function showScreen(name) {
+    var screens = document.querySelectorAll('.screen');
+    for (var i = 0; i < screens.length; i++) { screens[i].classList.remove('active'); }
+    $('screen-' + name).classList.add('active');
+  }
+
+  // ===================== Test flow =====================
+  function startTest() {
+    current = 0;
+    answers = new Array(QUESTIONS.length).fill(null);
+    showScreen('question');
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    var q = QUESTIONS[current];
+    $('questionText').textContent = q.text;
+    $('progressText').textContent = '第 ' + (current + 1) + ' 題 ／ ' + QUESTIONS.length;
+    var pct = (current / QUESTIONS.length) * 100;
+    $('progressFill').style.width = pct + '%';
+    $('progressTrack').setAttribute('aria-valuenow', String(current));
+
+    var optionsContainer = $('questionOptions');
+    optionsContainer.innerHTML = '';
+    var labels = ['非常不同意', '不同意', '普通', '同意', '非常同意'];
+    labels.forEach(function (label, i) {
+      var val = i + 1;
+      var btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.type = 'button';
+      btn.textContent = label;
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', answers[current] === val ? 'true' : 'false');
+      if (answers[current] === val) btn.classList.add('selected');
+      btn.addEventListener('click', function () { selectAnswer(val); });
+      optionsContainer.appendChild(btn);
+    });
+
+    $('backBtn').style.visibility = current === 0 ? 'hidden' : 'visible';
+
+    var card = $('questionCard');
+    card.classList.remove('q-anim');
+    void card.offsetWidth;
+    card.classList.add('q-anim');
+  }
+
+  function selectAnswer(val) {
+    answers[current] = val;
+    var opts = document.querySelectorAll('#questionOptions .opt-btn');
+    opts.forEach(function (btn, i) {
+      var isSelected = (i + 1) === val;
+      btn.classList.toggle('selected', isSelected);
+      btn.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+    });
+    setTimeout(function () {
+      if (current < QUESTIONS.length - 1) {
+        current++;
+        renderQuestion();
+      } else {
+        finishTest();
+      }
+    }, 280);
+  }
+
+  function goBack() {
+    if (current > 0) {
+      current--;
+      renderQuestion();
+    }
+  }
+
+  function finishTest() {
+    var result = calculateResult();
+    renderResult(result);
+    showScreen('result');
+  }
+
+  function calculateResult() {
+    var sums = { EI: { A: 0, B: 0 }, SN: { A: 0, B: 0 }, TF: { A: 0, B: 0 }, JP: { A: 0, B: 0 } };
+    QUESTIONS.forEach(function (q, i) {
+      sums[q.dim][q.pole] += answers[i];
+    });
+    var typeCode = '';
+    var dims = [];
+    DIM_ORDER.forEach(function (dim) {
+      var a = sums[dim].A, b = sums[dim].B;
+      var total = a + b;
+      var pctA = Math.round((a / total) * 100);
+      var pctB = 100 - pctA;
+      var letterA = POLE_LETTER[dim].A;
+      var letterB = POLE_LETTER[dim].B;
+      var winnerLetter = a >= b ? letterA : letterB;
+      var winnerPct = a >= b ? pctA : pctB;
+      typeCode += winnerLetter;
+      dims.push({ dim: dim, letterA: letterA, letterB: letterB, pctA: pctA, pctB: pctB, winnerLetter: winnerLetter, winnerPct: winnerPct });
+    });
+    return { typeCode: typeCode, dims: dims };
+  }
+
+  // ===================== Result rendering =====================
+  function renderResult(result) {
+    var profile = TYPES[result.typeCode];
+    $('resultEmoji').textContent = profile.emoji;
+    $('resultCode').textContent = result.typeCode;
+    $('resultNickname').textContent = profile.nickname;
+    $('resultTagline').textContent = profile.tagline;
+    $('resultDescription').textContent = profile.description;
+
+    var jarsContainer = $('jarsContainer');
+    jarsContainer.innerHTML = '';
+    result.dims.forEach(function (d) {
+      var jar = document.createElement('div');
+      jar.className = 'jar';
+      var body = document.createElement('div');
+      body.className = 'jar-body';
+      var fill = document.createElement('div');
+      fill.className = 'jar-fill';
+      fill.style.height = '0%';
+      fill.style.background = DIM_COLOR[d.dim];
+      body.appendChild(fill);
+      var label = document.createElement('div');
+      label.className = 'jar-label';
+      label.textContent = d.winnerLetter + ' ' + d.winnerPct + '%';
+      var sublabel = document.createElement('div');
+      sublabel.className = 'jar-sublabel';
+      sublabel.textContent = POLE_NAME[d.letterA] + d.pctA + '% ・ ' + POLE_NAME[d.letterB] + d.pctB + '%';
+      jar.appendChild(body);
+      jar.appendChild(label);
+      jar.appendChild(sublabel);
+      jarsContainer.appendChild(jar);
+
+      (function (fillEl, targetPct) {
+        requestAnimationFrame(function () {
+          setTimeout(function () { fillEl.style.height = targetPct + '%'; }, 100);
+        });
+      })(fill, d.winnerPct);
+    });
+
+    fillList('strengthsList', profile.strengths);
+    fillList('watchoutsList', profile.watchouts);
+    fillList('careersList', profile.careers);
+    $('compatibilityText').textContent = profile.compatibility;
+    $('celebritiesText').textContent = profile.celebrities.join('、');
+    $('copyHint').textContent = '';
+
+    currentResultData = { typeCode: result.typeCode, profile: profile, dims: result.dims };
+  }
+
+  function fillList(id, items) {
+    var el = $(id);
+    el.innerHTML = '';
+    items.forEach(function (item) {
+      var li = document.createElement('li');
+      li.textContent = item;
+      el.appendChild(li);
+    });
+  }
+
+  function buildResultText() {
+    if (!currentResultData) return '';
+    var typeCode = currentResultData.typeCode;
+    var profile = currentResultData.profile;
+    var dims = currentResultData.dims;
+    var dimLines = dims.map(function (d) {
+      return POLE_NAME[d.letterA] + '(' + d.letterA + ') ' + d.pctA + '% ／ ' + POLE_NAME[d.letterB] + '(' + d.letterB + ') ' + d.pctB + '%';
+    }).join('\n');
+    return '【我的 MBTI 測驗結果】\n' +
+      '類型：' + typeCode + ' ' + profile.nickname + ' ' + profile.emoji + '\n\n' +
+      dimLines + '\n\n' +
+      profile.description + '\n\n' +
+      '💪 優勢：' + profile.strengths.join('、') + '\n' +
+      '⚠️ 留意：' + profile.watchouts.join('、') + '\n' +
+      '💼 適合職業方向：' + profile.careers.join('、') + '\n' +
+      '❤️ 人際／戀愛相容性：' + profile.compatibility + '\n' +
+      '✨ 常被歸類為此型的名人（坊間看法，僅供參考）：' + profile.celebrities.join('、') + '\n\n' +
+      '（本測驗結果僅供自我認識參考，並非正式心理診斷）';
+  }
+
+  function copyResult() {
+    var text = buildResultText();
+    var success = false;
+
+    function fallbackCopy() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        showCopyResult(ok);
+      } catch (e) {
+        showCopyResult(false);
+      }
+    }
+
+    function showCopyResult(ok) {
+      $('copyHint').textContent = ok ? '已複製，可以貼到你想保存的地方了 ✓' : '複製失敗，請手動選取文字複製';
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () {
+        showCopyResult(true);
+      }).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  }
+
+  function restartTest() {
+    showScreen('start');
+  }
+
+  // ===================== Init =====================
+  document.addEventListener('DOMContentLoaded', function () {
+    $('startBtn').addEventListener('click', startTest);
+    $('backBtn').addEventListener('click', goBack);
+    $('copyBtn').addEventListener('click', copyResult);
+    $('restartBtn').addEventListener('click', restartTest);
+  });
+})();
+</script>
+</body>
+</html>
