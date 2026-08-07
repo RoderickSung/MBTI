@@ -100,6 +100,13 @@
   .btn-secondary:active { transform: scale(0.97); }
   .btn-secondary:focus-visible { outline: 3px solid var(--terracotta-deep); outline-offset: 3px; }
 
+  .btn-tertiary {
+    display: block; width: 100%; background: none; border: none; color: var(--ink-soft);
+    font-size: 14px; font-weight: 600; cursor: pointer; padding: 12px; font-family: inherit;
+    margin-top: 4px; text-align: center;
+  }
+  .btn-tertiary:focus-visible { outline: 2px solid var(--terracotta-deep); outline-offset: 2px; border-radius: 6px; }
+
   /* ---- Question screen ---- */
   .q-progress { margin-bottom: 28px; }
   .q-progress-track { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
@@ -168,8 +175,11 @@
   .info-card p { font-size: 14px; line-height: 1.7; }
 
   .result-actions { margin-top: 20px; }
+  .action-hint { font-size: 12px; color: var(--ink-soft); text-align: center; margin-top: 8px; margin-bottom: 4px; }
   .copy-hint { font-size: 12px; color: var(--ink-soft); text-align: center; margin-top: 10px; min-height: 16px; }
   .disclaimer { font-size: 11.5px; color: var(--ink-soft); text-align: center; line-height: 1.7; margin-top: 24px; padding: 0 8px; }
+
+  .print-header { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -181,6 +191,22 @@
 
   @media (min-width: 640px) { #app { padding-top: 56px; } }
   @media (max-width: 360px) { .q-text { font-size: 17px; } .result-code { font-size: 38px; } }
+
+  /* ---- Print / PDF report ---- */
+  @page { margin: 1.5cm; }
+  @media print {
+    body::before, body::after { display: none; }
+    #app { max-width: 100%; padding: 0; margin: 0; }
+    .result-actions { display: none; }
+    .disclaimer { margin-top: 20px; }
+    .print-header { display: block; text-align: center; margin-bottom: 22px; }
+    .print-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .print-date { font-size: 12px; color: var(--ink-soft); }
+    .result-emoji { animation: none; }
+    .q-card, .info-card { box-shadow: none; border: 1px solid var(--line); }
+    .stilllife { box-shadow: none; }
+    .info-card, .stilllife, .result-header { break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -214,6 +240,10 @@
   </section>
 
   <section class="screen" id="screen-result">
+    <div class="print-header" id="printHeader">
+      <p class="print-title">MBTI 性格測驗報告</p>
+      <p class="print-date" id="printDate"></p>
+    </div>
     <div class="result-header">
       <span class="result-emoji" id="resultEmoji">🦉</span>
       <p class="result-eyebrow">你的探索結果</p>
@@ -248,9 +278,11 @@
     </div>
 
     <div class="result-actions">
-      <button class="btn-primary" id="copyBtn" type="button">複製結果文字</button>
+      <button class="btn-primary" id="pdfBtn" type="button">下載 PDF 報告</button>
+      <p class="action-hint">點擊後會開啟列印視窗，選擇「儲存為 PDF」即可下載</p>
+      <button class="btn-secondary" id="copyBtn" type="button">複製結果文字</button>
       <p class="copy-hint" id="copyHint"></p>
-      <button class="btn-secondary" id="restartBtn" type="button">重新測驗</button>
+      <button class="btn-tertiary" id="restartBtn" type="button">重新測驗</button>
     </div>
     <p class="disclaimer">本測驗結果僅供自我認識與娛樂參考，並非正式心理測驗或臨床診斷。名人歸類為坊間普遍看法，非本人認證。</p>
   </section>
@@ -608,8 +640,13 @@
     $('compatibilityText').textContent = profile.compatibility;
     $('celebritiesText').textContent = profile.celebrities.join('、');
     $('copyHint').textContent = '';
+    $('printDate').textContent = '產生日期：' + formatDate(new Date());
 
     currentResultData = { typeCode: result.typeCode, profile: profile, dims: result.dims };
+  }
+
+  function formatDate(d) {
+    return d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日';
   }
 
   function fillList(id, items) {
@@ -682,10 +719,19 @@
     showScreen('start');
   }
 
+  function downloadPDF() {
+    if (!currentResultData) return;
+    var originalTitle = document.title;
+    document.title = 'MBTI測驗報告_' + currentResultData.typeCode;
+    window.print();
+    setTimeout(function () { document.title = originalTitle; }, 1000);
+  }
+
   // ===================== Init =====================
   document.addEventListener('DOMContentLoaded', function () {
     $('startBtn').addEventListener('click', startTest);
     $('backBtn').addEventListener('click', goBack);
+    $('pdfBtn').addEventListener('click', downloadPDF);
     $('copyBtn').addEventListener('click', copyResult);
     $('restartBtn').addEventListener('click', restartTest);
   });
