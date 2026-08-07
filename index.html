@@ -159,6 +159,12 @@
   .jar-label { font-size: 13px; font-weight: 700; }
   .jar-sublabel { font-size: 10px; color: var(--ink-soft); text-align: center; margin-top: 2px; max-width: 74px; }
 
+  .section-label { font-size: 13px; font-weight: 700; color: var(--ink-soft); text-align: center; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .radar-section { margin-bottom: 24px; }
+  .radar-wrap { max-width: 260px; margin: 0 auto; }
+  .radar-wrap svg { width: 100%; height: auto; display: block; }
+  .radar-legend { font-size: 12px; color: var(--ink-soft); text-align: center; margin-top: 6px; }
+
   .result-desc { font-size: 15px; line-height: 1.75; text-align: center; margin-bottom: 24px; padding: 0 4px; }
 
   .info-card { background: var(--surface); border-radius: 20px; padding: 18px 20px; margin-bottom: 14px; border-left: 5px solid var(--rose); box-shadow: 0 4px 14px var(--shadow); }
@@ -173,6 +179,23 @@
   .info-card li::before { content: '·'; position: absolute; left: 4px; font-weight: 800; color: var(--ink-soft); }
   .info-card li:last-child { margin-bottom: 0; }
   .info-card p { font-size: 14px; line-height: 1.7; }
+
+  .answer-log { background: var(--surface); border-radius: 20px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 4px 14px var(--shadow); }
+  .answer-log-summary {
+    font-size: 14px; font-weight: 700; cursor: pointer; display: block;
+    padding: 2px 24px 2px 0; position: relative;
+  }
+  .answer-log-summary::-webkit-details-marker { display: none; }
+  .answer-log-summary::after {
+    content: '▾'; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    transition: transform .2s ease; color: var(--ink-soft);
+  }
+  .answer-log[open] .answer-log-summary::after { transform: translateY(-50%) rotate(180deg); }
+  .answer-log-list { margin-top: 14px; }
+  .answer-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .answer-row:last-child { border-bottom: none; }
+  .answer-q { flex: 1; line-height: 1.5; }
+  .answer-choice { flex-shrink: 0; font-weight: 700; color: var(--terracotta-deep); white-space: nowrap; }
 
   .result-actions { margin-top: 20px; }
   .action-hint { font-size: 12px; color: var(--ink-soft); text-align: center; margin-top: 8px; margin-bottom: 4px; }
@@ -203,9 +226,11 @@
     .print-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
     .print-date { font-size: 12px; color: var(--ink-soft); }
     .result-emoji { animation: none; }
-    .q-card, .info-card { box-shadow: none; border: 1px solid var(--line); }
-    .stilllife { box-shadow: none; }
-    .info-card, .stilllife, .result-header { break-inside: avoid; }
+    .q-card, .info-card, .answer-log { box-shadow: none; border: 1px solid var(--line); }
+    .stilllife, .radar-wrap svg { box-shadow: none; }
+    .info-card, .stilllife, .result-header, .radar-section, .answer-row { break-inside: avoid; }
+    .answer-log-summary { cursor: default; }
+    .answer-log-summary::after { display: none; }
   }
 </style>
 </head>
@@ -254,6 +279,12 @@
 
     <div class="stilllife" id="jarsContainer"></div>
 
+    <div class="radar-section">
+      <p class="section-label">🎯 四維度雷達圖</p>
+      <div class="radar-wrap" id="radarWrap"></div>
+      <p class="radar-legend" id="radarLegend"></p>
+    </div>
+
     <p class="result-desc" id="resultDescription"></p>
 
     <div class="info-card strengths">
@@ -276,6 +307,11 @@
       <div class="info-title">✨ 常見同類型名人</div>
       <p id="celebritiesText"></p>
     </div>
+
+    <details class="answer-log" id="answerLogDetails">
+      <summary class="answer-log-summary">📝 完整作答紀錄（32 題）</summary>
+      <div class="answer-log-list" id="answerLogList"></div>
+    </details>
 
     <div class="result-actions">
       <button class="btn-primary" id="pdfBtn" type="button">下載 PDF 報告</button>
@@ -339,6 +375,7 @@
   var POLE_NAME = { E: '外向', I: '內向', S: '實感', N: '直覺', T: '思考', F: '情感', J: '判斷', P: '感知' };
   var DIM_COLOR = { EI: 'var(--rose)', SN: 'var(--camel)', TF: 'var(--terracotta)', JP: 'var(--mauve)' };
   var DIM_ORDER = ['EI', 'SN', 'TF', 'JP'];
+  var LIKERT_LABELS = ['非常不同意', '不同意', '普通', '同意', '非常同意'];
 
   // ===================== Data: Type Profiles =====================
   var TYPES = {
@@ -520,8 +557,7 @@
 
     var optionsContainer = $('questionOptions');
     optionsContainer.innerHTML = '';
-    var labels = ['非常不同意', '不同意', '普通', '同意', '非常同意'];
-    labels.forEach(function (label, i) {
+    LIKERT_LABELS.forEach(function (label, i) {
       var val = i + 1;
       var btn = document.createElement('button');
       btn.className = 'opt-btn';
@@ -642,7 +678,70 @@
     $('copyHint').textContent = '';
     $('printDate').textContent = '產生日期：' + formatDate(new Date());
 
+    renderRadarChart(result.dims);
+    renderAnswerLog();
+
     currentResultData = { typeCode: result.typeCode, profile: profile, dims: result.dims };
+  }
+
+  function renderRadarChart(dims) {
+    var size = 300, center = size / 2, maxRadius = 82;
+    var angles = [0, 90, 180, 270];
+    var gridLevels = [0.25, 0.5, 0.75, 1];
+
+    function toXY(angleDeg, radius) {
+      var rad = (angleDeg - 90) * Math.PI / 180;
+      return { x: center + radius * Math.cos(rad), y: center + radius * Math.sin(rad) };
+    }
+    function pts(arr) { return arr.map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' '); }
+
+    var svg = '<svg viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="四維度雷達圖">';
+
+    gridLevels.forEach(function (level) {
+      var ring = angles.map(function (a) { return toXY(a, maxRadius * level); });
+      svg += '<polygon points="' + pts(ring) + '" fill="none" stroke="var(--line)" stroke-width="1" />';
+    });
+    angles.forEach(function (a) {
+      var p = toXY(a, maxRadius);
+      svg += '<line x1="' + center + '" y1="' + center + '" x2="' + p.x.toFixed(1) + '" y2="' + p.y.toFixed(1) + '" stroke="var(--line)" stroke-width="1" />';
+    });
+
+    var dataPts = dims.map(function (d, i) {
+      var fraction = Math.max(0, (d.winnerPct - 50) / 50);
+      return toXY(angles[i], maxRadius * fraction);
+    });
+    svg += '<polygon points="' + pts(dataPts) + '" fill="var(--terracotta)" fill-opacity="0.32" stroke="var(--terracotta-deep)" stroke-width="2.5" stroke-linejoin="round" />';
+    dataPts.forEach(function (p) {
+      svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="4.5" fill="var(--terracotta-deep)" />';
+    });
+
+    var labelRadius = maxRadius + 34;
+    dims.forEach(function (d, i) {
+      var p = toXY(angles[i], labelRadius);
+      svg += '<text x="' + p.x.toFixed(1) + '" y="' + p.y.toFixed(1) + '" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="var(--ink)">' + d.winnerLetter + ' ' + d.winnerPct + '%</text>';
+    });
+
+    svg += '</svg>';
+    $('radarWrap').innerHTML = svg;
+    $('radarLegend').textContent = dims.map(function (d) { return POLE_NAME[d.winnerLetter] + ' ' + d.winnerPct + '%'; }).join(' ・ ');
+  }
+
+  function renderAnswerLog() {
+    var container = $('answerLogList');
+    container.innerHTML = '';
+    QUESTIONS.forEach(function (q, i) {
+      var row = document.createElement('div');
+      row.className = 'answer-row';
+      var qText = document.createElement('span');
+      qText.className = 'answer-q';
+      qText.textContent = (i + 1) + '. ' + q.text;
+      var choice = document.createElement('span');
+      choice.className = 'answer-choice';
+      choice.textContent = LIKERT_LABELS[answers[i] - 1];
+      row.appendChild(qText);
+      row.appendChild(choice);
+      container.appendChild(row);
+    });
   }
 
   function formatDate(d) {
@@ -722,9 +821,15 @@
   function downloadPDF() {
     if (!currentResultData) return;
     var originalTitle = document.title;
+    var logEl = $('answerLogDetails');
+    var wasOpen = logEl.open;
+    logEl.open = true;
     document.title = 'MBTI測驗報告_' + currentResultData.typeCode;
     window.print();
-    setTimeout(function () { document.title = originalTitle; }, 1000);
+    setTimeout(function () {
+      document.title = originalTitle;
+      logEl.open = wasOpen;
+    }, 1000);
   }
 
   // ===================== Init =====================
